@@ -142,7 +142,12 @@ RCT_EXPORT_METHOD(prepare:(nonnull NSNumber*)playerId
         if (autoDestroy) {
             player.autoDestroy = [autoDestroy boolValue];
         }
-
+        
+        NSNumber *isLive = [options objectForKey:@"isLive"];
+        if (isLive) {
+            player.isLive = [isLive boolValue];
+        }
+        
         [[self playerPool] setObject:player forKey:playerId];
     } else {
         NSString *errMsg = [NSString stringWithFormat:@"Could not initialize player, error: %@", error];
@@ -203,6 +208,7 @@ RCT_EXPORT_METHOD(destroy:(nonnull NSNumber*)playerId withCallback:(RCTResponseS
 
 RCT_EXPORT_METHOD(seek:(nonnull NSNumber*)playerId withPos:(nonnull NSNumber*)position withCallback:(RCTResponseSenderBlock)callback) {
     AVPlayer* player = [self playerForKey:playerId];
+    ReactPlayer *reactPlayer = (ReactPlayer *)[self playerForKey:playerId];
     
     if (!player) {
         NSDictionary* dict = [Helpers errObjWithCode:@"notfound"
@@ -221,15 +227,23 @@ RCT_EXPORT_METHOD(seek:(nonnull NSNumber*)playerId withPos:(nonnull NSNumber*)po
              toleranceBefore:kCMTimeZero // for precise positioning
              toleranceAfter:kCMTimeZero
              completionHandler:^(BOOL finished) {
-                 callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
-                                             @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+                 if (reactPlayer.isLive) {
+                     callback(@[[NSNull null]]);
+                 }else{
+                     callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
+                                                 @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+                 }
              }];
         } else {
             [player.currentItem
              seekToTime:CMTimeMakeWithSeconds([position doubleValue] / 1000, 60000)
              completionHandler:^(BOOL finished) {
-                 callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
-                                             @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+                 if (reactPlayer.isLive) {
+                     callback(@[[NSNull null]]);
+                 }else{
+                     callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
+                                                 @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+                 }
              }];
         }
     }
@@ -246,10 +260,13 @@ RCT_EXPORT_METHOD(play:(nonnull NSNumber*)playerId withCallback:(RCTResponseSend
     }
     
     [player play];
-    callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
-                                @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
     
-
+    if (player.isLive) {
+        callback(@[[NSNull null]]);
+    }else{
+        callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
+                                    @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+    }
 }
 
 RCT_EXPORT_METHOD(set:(nonnull NSNumber*)playerId withOpts:(NSDictionary*)options withCallback:(RCTResponseSenderBlock)callback) {
@@ -292,12 +309,17 @@ RCT_EXPORT_METHOD(stop:(nonnull NSNumber*)playerId withCallback:(RCTResponseSend
         [player.currentItem seekToTime:CMTimeMakeWithSeconds(0.0, 60000)];
     }
     
-    callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
-                                @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+    if (player.isLive) {
+        callback(@[[NSNull null]]);
+    }else{
+        callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
+                                    @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+    }
 }
 
 RCT_EXPORT_METHOD(pause:(nonnull NSNumber*)playerId withCallback:(RCTResponseSenderBlock)callback) {
     AVPlayer* player = [self playerForKey:playerId];
+    ReactPlayer *reactPlayer = (ReactPlayer *)[self playerForKey:playerId];
     
     if (!player) {
         NSDictionary* dict = [Helpers errObjWithCode:@"notfound"
@@ -307,9 +329,12 @@ RCT_EXPORT_METHOD(pause:(nonnull NSNumber*)playerId withCallback:(RCTResponseSen
     }
     
     [player pause];
-
-    callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
-                                @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+    if (reactPlayer.isLive) {
+        callback(@[[NSNull null]]);
+    }else{
+        callback(@[[NSNull null], @{@"duration": @(CMTimeGetSeconds(player.currentItem.asset.duration) * 1000),
+                                    @"position": @(CMTimeGetSeconds(player.currentTime) * 1000)}]);
+    }
 }
 
 RCT_EXPORT_METHOD(resume:(nonnull NSNumber*)playerId withCallback:(RCTResponseSenderBlock)callback) {

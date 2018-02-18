@@ -15,6 +15,7 @@
     
     self.looping = NO;
     self.autoDestroy = YES;
+    self.isLive = NO;
     
     return self;
 }
